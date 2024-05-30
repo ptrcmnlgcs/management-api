@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Product;
+use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
@@ -12,63 +12,43 @@ class ProductController extends Controller
         return Product::all();
     }
 
-    public function show($id)
-    {
-        return Product::find($id);
-    }
-
     public function store(Request $request)
     {
-        // Validate the request
+        // Validate request
         $request->validate([
             'name' => 'required|string',
             'description' => 'nullable|string',
             'price' => 'required|numeric',
+            // Add more validation rules as needed
         ]);
 
-        // Create the product
-        $product = Product::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'price' => $request->price,
-        ]);
-
-        // Return the newly created product
-        return response()->json(['product' => $product], 201);
+        // Create new product
+        return Product::create($request->all());
     }
 
     public function update(Request $request, $id)
     {
-        // Validate the request
+        // Validate request
         $request->validate([
             'name' => 'required|string',
             'description' => 'nullable|string',
             'price' => 'required|numeric',
+            // Add more validation rules as needed
         ]);
 
-        // Find the product
+        // Find and update product
         $product = Product::findOrFail($id);
+        $product->update($request->all());
 
-        // Update the product
-        $product->update([
-            'name' => $request->name,
-            'description' => $request->description,
-            'price' => $request->price,
-        ]);
-
-        // Return the updated product
-        return response()->json(['product' => $product], 200);
+        return $product;
     }
 
     public function destroy($id)
     {
-        // Find the product
+        // Find and delete product
         $product = Product::findOrFail($id);
-
-        // Delete the product
         $product->delete();
 
-        // Return success message
-        return response()->json(['message' => 'Product deleted successfully'], 200);
+        return response()->json(['message' => 'Product deleted successfully']);
     }
 }
