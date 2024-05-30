@@ -1,70 +1,67 @@
 <?php
 
+// Include necessary namespaces
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Request; // For handling HTTP requests
+use Illuminate\Support\Facades\Auth; // For handling authentication
+use App\Models\User; // User model
 
+// Define AuthController class which extends Controller
 class AuthController extends Controller
 {
-    /**
-     * Register a new user.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+    // Function to handle user registration
     public function register(Request $request)
     {
-        $validator = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6|confirmed|regex:/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,}$/',
-        ], //custom validation error messages for password, email, and name 
-        [
-            'email.unique' => 'The email has already been taken.',
-            'password.min' => 'The password must be at least 6 characters.',
-            'password.confirmed' => 'The password confirmation does not match.',
-            'password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character.',
+        // Validate incoming request fields
+        $request->validate([
+            'name' => 'required|string|max:255', // Name must be a string, not exceed 255 characters and it is required
+            'email' => 'required|string|email|max:255|unique:users', // Email must be a string, a valid email, not exceed 255 characters, it is required and it must be unique in the users table
+            'password' => 'required|string|min:6', // Password must be a string, at least 6 characters and it is required
         ]);
 
-        // create a new user using the User model
-        // User::create is pre-defined method in Laravel to create a new user by passing the request data
+        // Create new User
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password), // hash the password before storing it in the database
+            'password' => bcrypt($request->password), // Hash the password
         ]);
 
-        // a message that returns when the user is successfully registered
-        return response()->json(['message' => 'User registered successfully'], 201);
+        // Return user data as JSON with a 201 (created) HTTP status code
+        return response()->json(['user' => $user], 201);
     }
 
-    /**
-     * Authenticate a user and generate token.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+    // Function to handle user login
     public function login(Request $request)
     {
-        // validate is predefine method in Laravel to validate the request data
+        // Validate incoming request fields
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
+            'email' => 'required|string|email', // Email must be a string, a valid email and it is required
+            'password' => 'required|string', // Password must be a string and it is required
         ]);
 
-        // the Auth::attempt is pre-defined method in Laravel to authenticate the user
-        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
-            $user = Auth::user();
-            $token = $user->createToken('token-name')->plainTextToken;
-
-            return response()->json(['token' => $token], 201);
+        // Check if the provided credentials are valid
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            // If not, return error message with a 401 (Unauthorized) HTTP status code
+            return response()->json(['message' => 'Invalid login details'], 401);
         }
 
-        // Authentication failed
-        return response()->json(['message' => 'Invalid username or password'], 401);
+        // If credentials are valid, get the authenticated user
+        $user = $request->user();
+        // Create a new token for this user
+        $token = $user->createToken('authToken')->plainTextToken;
+
+        // Return user data and token as JSON
+        return response()->json(['user' => $user, 'token' => $token]);
+    }
+
+    // Function to handle user logout
+    public function logout(Request $request)
+    {
+        // Delete all tokens for the authenticated user
+        $request->user()->tokens()->delete();
+
+        // Return success message as JSON
+        return response()->json(['message' => 'Logged out']);
     }
 }
